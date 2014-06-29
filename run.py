@@ -251,13 +251,14 @@ class Logger(object):
 
 class PushNotifier(object):
 
-	def __init__(self, host, port, user, password, fromAddr, to):
+	def __init__(self, host, port, user, password, fromAddr, to, initialIsParked):
 		self._port = port
 		self._host = host
 		self._user = user
 		self._password = password
 		self._from = fromAddr
 		self._to = to
+		self._carParked = initialIsParked
 
 	def _notify(self, subject, content):
 		smtp = smtplib.SMTP_SSL(self._host, self._port)
@@ -278,10 +279,15 @@ class PushNotifier(object):
 		self._notify('STARTED UP', 'System has started')
 
 	def onMovementDetected(self, sender, arg):
-		self._notify('DETECTED MOVEMENT', 'PIR detector has registered movement')
+		if self._carParked:
+			self._notify('DETECTED MOVEMENT', 'PIR detector has registered movement')
+
+	def onCarParked(self, sender, arg):
+		self._carParked = True
 
 	def onCarAbsent(self, sender, arg):
 		self._notify('CAR LEFT', 'The car is gone!!')
+		self._carParked = False
 
 
 pfd = pifacedigitalio.PiFaceDigital()
@@ -290,7 +296,7 @@ parkedTracker = CarDetector(pfd, PIN_INPUT_PARKED_DETECTOR, DURATION_DETECTING, 
 parkingIndicator = ParkingIndicator(pfd, PIN_OUTPUT_PARKING_INDICATOR)
 movementDetector = MovementDetector(pfd, PIN_INPUT_PIR_DETECTOR)
 floodLightController = FloodLightController(pfd, PIN_OUTPUT_FLOODLIGHT, parkedTracker.isParked(), movementDetector.haveDetected(), DURATION_FLOODLIGHT)
-pushNotifier = PushNotifier(imapHost, imapPort, imapUser, imapPassword, notifyEmailFrom, notifyEmailTo)
+pushNotifier = PushNotifier(imapHost, imapPort, imapUser, imapPassword, notifyEmailFrom, notifyEmailTo, parkedTracker.isParked())
 logger = Logger
 
 parkedTracker.carPresent += parkingIndicator.onCarPresent
@@ -306,6 +312,7 @@ parkedTracker.carLeft += logger.onCarAbsent
 movementDetector.movementDetected += logger.onMovementDetected
 movementDetector.movementCeased += logger.onMovementCeased
 
+parkedTracker.carParked += pushNotifier.onCarParked
 parkedTracker.carLeft += pushNotifier.onCarAbsent
 movementDetector.movementDetected += pushNotifier.onMovementDetected
 
