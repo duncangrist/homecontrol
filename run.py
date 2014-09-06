@@ -261,19 +261,22 @@ class PushNotifier(object):
 		self._carParked = initialIsParked
 
 	def _notify(self, subject, content):
-		smtp = smtplib.SMTP_SSL(self._host, self._port)
-
-		smtp.login(self._user, self._password)
-
-		text = content
-		msg = MIMEText(text)
-		msg['Subject'] = subject
-		msg['From'] = self._from
-		msg['To'] = self._to
 		try:
-			smtp.sendmail(imapUser, [self._to], msg.as_string())
-		finally:
-			smtp.close()
+			smtp = smtplib.SMTP_SSL(self._host, self._port)
+
+			smtp.login(self._user, self._password)
+
+			text = content
+			msg = MIMEText(text)
+			msg['Subject'] = subject
+			msg['From'] = self._from
+			msg['To'] = self._to
+			try:
+				smtp.sendmail(imapUser, [self._to], msg.as_string())
+			finally:
+				smtp.close()
+		except:
+			print("Unexpected error:", sys.exc_info()[0])
 
 	def onStartup(self):
 		self._notify('STARTED UP', 'System has started')
